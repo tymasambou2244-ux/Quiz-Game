@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Culture Générale</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.ico"> 
+</head>
+<body>
+    <div id="ecranAccueil">
+    <h2>Bienvenue dans le Quiz !</h2>
+    <h3>Règles :</h3>
+    <ul>
+        <li><strong>200 questions</strong> de culture générale</li>
+        <li><strong>4 choix</strong> de réponse par question</li>
+        <li><strong>20 secondes</strong> maximum par question</li>
+        <li><strong>+1 point</strong> par bonne réponse</li>
+        <li>Pas de pénalité pour les mauvaises réponses</li>
+        <li>Score final sur <strong>200 points</strong></li>
+    </ul>
+    <p><strong>Thèmes :</strong> Histoire · Géographie · Sciences · Arts · Littérature · Sports · Musique · Cinéma</p>
+    <button onclick="demarrerQuiz()">▶ COMMENCER LE QUIZ</button>
+</div>
+
+<div id="ecranQuestion" style="display:none;">
+    <!-- Zone de jeu normale -->
+    <div id="contenuQuestionActif">
+        <table>
+            <tr>
+                <td><span>Question</span><br><strong><span id="numQuestion">1</span>/200</strong></td>
+                <td><span>Score</span><br><strong><span id="scoreActuel">0</span> / 200</strong></td>
+                <td><span>Temps</span><br><strong><span id="chrono">20</span> s</strong></td>
+            </tr>
+        </table>
+        <div><strong><span id="texteQuestion"></span></strong></div>
+        <table>
+            <tr>
+                <td><button id="btnA" onclick="repondre('A')"><b>A)</b> <span id="texteA"></span></button></td>
+                <td><button id="btnB" onclick="repondre('B')"><b>B)</b> <span id="texteB"></span></button></td>
+            </tr>
+            <tr>
+                <td><button id="btnC" onclick="repondre('C')"><b>C)</b> <span id="texteC"></span></button></td>
+                <td><button id="btnD" onclick="repondre('D')"><b>D)</b> <span id="texteD"></span></button></td>
+            </tr>
+        </table>
+        <p id="feedbackQuestion"></p>
+    </div>
+
+    <!-- Écran de pause (caché par défaut) -->
+    <div id="contenuPause" style="display:none; text-align:center; padding:40px 0;">
+        <h2 style="font-size:3rem; color:#ffd93d;">⏸️ PAUSE</h2>
+        <p style="font-size:1.3rem;">Le temps est suspendu, ne triche pas ! 😉</p>
+    </div>
+
+    <!-- Le bouton pause (toujours visible) -->
+    <button id="boutonPause">⏸️ Pause</button>
+</div>
+
+<div id="ecranResultat" style="display:none;">
+    <h2>RÉSULTATS</h2>
+    <div>
+        <p>Votre score : <strong><span id="scoreFinal">0</span> / 200</strong></p>
+        <p><strong><span id="mentionFinale">Mention</span></strong></p>
+        <p id="commentaireFinal"></p>
+    </div>
+
+    <table id="tableauRecap">
+        <thead>
+            <tr>
+                <th colspan="2">Récapitulatif</th>
+            </tr>
+        </thead>
+        <tbody id="corpsRecap"></tbody>
+    </table>
+
+    <button onclick="recommencerQuiz()">🔄 RECOMMENCER</button>
+    <button onclick="montrerAccueil()">🏠 ACCUEIL</button>
+</div>
+
+<!-- Le script ci-dessous est indispensable au fonctionnement -->
+<script src="script.js"></script>
+</body>
+</html>
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

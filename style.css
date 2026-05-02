@@ -1,0 +1,283 @@
+/* ========== IMPORTATION DE POLICES ========== */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap');
+
+/* ========== RÉINITIALISATION & BASE ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Quicksand', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    margin: 0;
+}
+
+/* Conteneur principal centré */
+body > center {
+    width: 100%;
+    max-width: 850px;
+}
+
+/* ========== ÉCRANS ========== */
+#ecranAccueil,
+#ecranQuestion,
+#ecranResultat {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border-radius: 30px;
+    padding: 40px 30px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5),
+                inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    margin: 20px auto;
+}
+
+/* ========== TITRES & TEXTES ========== */
+h2 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+    background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+h3 {
+    font-size: 1.6rem;
+    color: #ffd93d;
+    margin-bottom: 15px;
+}
+
+p, span, li {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #d0d0e0;
+}
+
+/* Règles du jeu */
+ul {
+    list-style: none;
+    padding-left: 10px;
+}
+
+ul li {
+    margin: 10px 0;
+    position: relative;
+    padding-left: 35px;
+}
+
+ul li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    font-size: 1.2rem;
+    color: #ffd93d;
+}
+
+/* ========== BOUTONS ========== */
+button {
+    font-family: 'Quicksand', sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    padding: 14px 32px;
+    margin: 10px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    color: white;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 20px rgba(108, 92, 231, 0.3);
+    letter-spacing: 0.5px;
+    outline: none;
+}
+
+button:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 12px 28px rgba(108, 92, 231, 0.5);
+    background: linear-gradient(135deg, #7d6ff0, #b5aefb);
+}
+
+button:active {
+    transform: translateY(2px) scale(0.98);
+    box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);
+}
+
+/* Boutons spéciaux (les réponses) */
+#ecranQuestion button {
+    width: 100%;
+    font-size: 1rem;
+    padding: 15px 20px;
+    margin: 5px 0;
+    background: linear-gradient(135deg, #1e3a5f, #2a4a7f);
+    border: 2px solid #4a90d9;
+    border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    text-align: left;
+}
+
+#ecranQuestion button:hover {
+    background: linear-gradient(135deg, #2a4a7f, #3b5ea0);
+    border-color: #7db9ff;
+    box-shadow: 0 8px 20px rgba(74, 144, 217, 0.5);
+    transform: scale(1.02);
+}
+
+#ecranQuestion button span {
+    font-size: 1rem;
+}
+
+/* ========== TABLEAUX ========== */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 8px;
+    margin: 20px 0;
+}
+
+th, td {
+    padding: 12px 15px;
+    border-radius: 15px;
+    background: rgba(26, 26, 62, 0.7);
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+th {
+    background: rgba(255, 255, 255, 0.1);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #ffd93d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Tableau de récapitulatif */
+#tableauRecap {
+    width: 100%;
+    margin-top: 20px;
+}
+
+#tableauRecap td {
+    text-align: left;
+    font-size: 0.95rem;
+    background: rgba(15, 25, 50, 0.8);
+}
+
+#tableauRecap td:last-child {
+    text-align: center;
+    width: 60px;
+}
+
+/* ========== CHRONO & SCORE BOARD ========== */
+#ecranQuestion table:first-of-type td {
+    font-size: 1.3rem;
+    font-weight: 600;
+    background: rgba(108, 92, 231, 0.2);
+}
+
+#chrono {
+    color: #ff6b6b;
+    font-size: 1.8rem;
+    font-weight: 700;
+    transition: color 0.3s;
+    animation: pulse 1s infinite;
+}
+
+/* Animation quand le temps presse */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); color: #ff3860; }
+    100% { transform: scale(1); }
+}
+
+#scoreActuel {
+    color: #ffd93d;
+    font-size: 1.8rem;
+}
+
+/* ========== FEEDBACK RÉPONSE ========== */
+#feedbackQuestion {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-top: 20px;
+    min-height: 30px;
+    transition: opacity 0.3s ease;
+}
+
+#feedbackQuestion font {
+    font-family: 'Quicksand', sans-serif;
+}
+
+/* ========== STYLES POUR LES BOUTONS CORRECT/INCORRECT ========== */
+/* (Ces classes sont ajoutées dynamiquement par le JS via les styles inline, 
+   mais nous pouvons les surcharger avec une transition douce) */
+button[style*="background: rgb(0, 170, 85)"] {
+    background: #00cc66 !important;
+    border-color: #00ff88 !important;
+    box-shadow: 0 0 20px #00ff88 !important;
+}
+
+button[style*="background: rgb(204, 51, 51)"] {
+    background: #ff3860 !important;
+    border-color: #ff6b6b !important;
+    box-shadow: 0 0 20px #ff3860 !important;
+}
+
+/* ========== ÉCRAN RÉSULTATS ========== */
+#ecranResultat h2 {
+    font-size: 2.8rem;
+    margin-bottom: 30px;
+}
+
+#ecranResultat p {
+    font-size: 1.3rem;
+    margin: 15px 0;
+}
+
+#scoreFinal {
+    font-size: 2.5rem;
+    background: linear-gradient(45deg, #ffd93d, #ff6b6b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#mentionFinale {
+    font-size: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+    h2 {
+        font-size: 1.8rem;
+    }
+    button {
+        font-size: 1rem;
+        padding: 12px 24px;
+    }
+    #ecranQuestion button {
+        font-size: 0.9rem;
+        padding: 12px 15px;
+    }
+    table {
+        border-spacing: 4px;
+    }
+}
