@@ -5,31 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Culture Générale</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" href="favicon.ico"> 
 </head>
 <body>
     <div id="ecranAccueil">
     <h2>Bienvenue dans le Quiz !</h2>
-
-    <h3>Choisissez votre difficulté :</h3>
-    <div id="choixDifficulte" role="group" aria-label="Choix de la difficulté">
-        <button type="button" class="btnDifficulte" data-difficulte="facile">🙂 Facile<br><small>10 questions · 25 s</small></button>
-        <button type="button" class="btnDifficulte" data-difficulte="moyen">😎 Moyen<br><small>20 questions · 20 s</small></button>
-        <button type="button" class="btnDifficulte" data-difficulte="difficile">🔥 Difficile<br><small>30 questions · 15 s</small></button>
-    </div>
-
     <h3>Règles :</h3>
     <ul>
+        <li><strong>15 questions</strong> tirées parmi 200</li>
         <li><strong>4 choix</strong> de réponse par question</li>
-        <li>Un temps limité par question, selon la difficulté</li>
+        <li><strong>20 secondes</strong> maximum par question</li>
         <li><strong>+1 point</strong> par bonne réponse</li>
         <li>Pas de pénalité pour les mauvaises réponses</li>
-        <li>Les réponses sont mélangées à chaque partie</li>
+        <li>Score final sur <strong>15 points</strong></li>
     </ul>
-    <p><strong>Thèmes :</strong> Histoire · Géographie · Sciences · Arts · Littérature · Sports · Musique · Cinéma · Technologie · Nature</p>
+    <p><strong>Thèmes :</strong> Histoire · Géographie · Sciences · Arts · Littérature · Sports · Musique · Cinéma</p>
     <button onclick="demarrerQuiz()">▶ COMMENCER LE QUIZ</button>
-    <button id="btnReprendre" onclick="reprendrePartie()" style="display:none;">⏯ REPRENDRE LA PARTIE</button>
-    <div id="meilleursScores"></div>
 </div>
 
 <div id="ecranQuestion" style="display:none;">
@@ -37,14 +28,13 @@
     <div id="contenuQuestionActif">
         <table>
             <tr>
-                <td><span>Question</span><br><strong><span id="numQuestion">1</span>/<span id="totalQuestions">200</span></strong></td>
-                <td><span>Score</span><br><strong><span id="scoreActuel">0</span> / <span id="totalScore">200</span></strong></td>
+                <td><span>Question</span><br><strong><span id="numQuestion">1</span>/15</strong></td>
+                <td><span>Score</span><br><strong><span id="scoreActuel">0</span> / 15</strong></td>
                 <td><span>Temps</span><br><strong><span id="chrono">20</span> s</strong></td>
             </tr>
         </table>
-        <div id="barreProgression" aria-hidden="true"><div id="barreProgressionRemplissage"></div></div>
         <div><strong><span id="texteQuestion"></span></strong></div>
-        <table id="tableReponses">
+        <table>
             <tr>
                 <td><button id="btnA" onclick="repondre('A')"><b>A)</b> <span id="texteA"></span></button></td>
                 <td><button id="btnB" onclick="repondre('B')"><b>B)</b> <span id="texteB"></span></button></td>
@@ -54,7 +44,7 @@
                 <td><button id="btnD" onclick="repondre('D')"><b>D)</b> <span id="texteD"></span></button></td>
             </tr>
         </table>
-        <p id="feedbackQuestion" role="status" aria-live="polite"></p>
+        <p id="feedbackQuestion"></p>
     </div>
 
     <!-- Écran de pause (caché par défaut) -->
@@ -70,7 +60,7 @@
 <div id="ecranResultat" style="display:none;">
     <h2>RÉSULTATS</h2>
     <div>
-        <p>Votre score : <strong><span id="scoreFinal">0</span> / <span id="totalFinal">200</span></strong></p>
+        <p>Votre score : <strong><span id="scoreFinal">0</span> / 15</strong></p>
         <p><strong><span id="mentionFinale">Mention</span></strong></p>
         <p id="commentaireFinal"></p>
     </div>

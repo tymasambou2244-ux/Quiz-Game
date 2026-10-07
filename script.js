@@ -219,43 +219,72 @@ var toutesLesQuestions = [
 ];
 
 // =====================================================
-// CONFIGURATION DU JEU
-// =====================================================
-var DIFFICULTES = {
-    facile:    { nom: 'Facile',    questions: 10, temps: 25 },
-    moyen:     { nom: 'Moyen',     questions: 20, temps: 20 },
-    difficile: { nom: 'Difficile', questions: 30, temps: 15 }
-};
-var difficulteChoisie = 'moyen';
-var DUREE_QUESTION = DIFFICULTES[difficulteChoisie].temps;
+// Nombre de questions jouees par partie
+var QUESTIONS_PAR_PARTIE = 15;
 
-// =====================================================
 // VARIABLES GLOBALES DU JEU
 // =====================================================
 var questionsMelangees = [];
 var indexQuestion = 0;
 var score = 0;
-var chronoRestant = DUREE_QUESTION;
+var chronoRestant = 20;
 var intervalleChrono = null;
-var chronoFin = 0;                    // horodatage de fin (temps réel)
 var reponsesDonnees = [];
 var jeuBloque = false;
 var enPause = false;
-var tempsAvantPause = DUREE_QUESTION;
-var contexteAudio = null;             // AudioContext réutilisé (pas de fuite)
+var tempsAvantPause = 20;
 
 // =====================================================
-// UTILITAIRES
+// FONCTIONS D'AFFICHAGE
 // =====================================================
-// Échappe une chaîne avant injection dans du HTML (anti-XSS).
-function echapper(valeur) {
-    return String(valeur).replace(/[&<>"']/g, function (car) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[car];
-    });
+function cacherTousLesEcrans() {
+    document.getElementById('ecranAccueil').style.display = 'none';
+    document.getElementById('ecranQuestion').style.display = 'none';
+    document.getElementById('ecranResultat').style.display = 'none';
 }
 
-// Prépare une question : mélange les positions des réponses (A-D) et
-// recalcule l'emplacement de la bonne réponse pour supprimer tout biais.
+function montrerAccueil() {
+    arreterChrono();
+    cacherTousLesEcrans();
+    document.getElementById('ecranAccueil').style.display = 'block';
+    document.getElementById('feedbackQuestion').innerHTML = '';
+    var musique = document.getElementById('musiqueFond');
+    if (musique) musique.pause();
+}
+
+function montrerQuestion() {
+    cacherTousLesEcrans();
+    document.getElementById('ecranQuestion').style.display = 'block';
+    document.getElementById('feedbackQuestion').innerHTML = '';
+    jeuBloque = false;
+    reactiverBoutons();
+    remettreStyleBoutons();
+}
+
+function montrerResultat() {
+    arreterChrono();
+    cacherTousLesEcrans();
+    document.getElementById('ecranResultat').style.display = 'block';
+    var musique = document.getElementById('musiqueFond');
+    if (musique) musique.pause();
+}
+
+// =====================================================
+// MÉLANGE DES QUESTIONS
+// =====================================================
+function melangerTableau(tableau) {
+    var tab = tableau.slice();
+    for (var i = tab.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = tab[i];
+        tab[i] = tab[j];
+        tab[j] = temp;
+    }
+    return tab;
+}
+
+// Mélange indépendamment les positions des réponses d'une question et
+// recale la bonne réponse sur sa nouvelle lettre (A/B/C/D).
 function preparerQuestion(q) {
     var lettres = ['A', 'B', 'C', 'D'];
     var bonneTexte = q.choix[q.bonneReponse];
@@ -273,97 +302,27 @@ function preparerQuestion(q) {
     };
 }
 
-// Retourne un AudioContext unique, réutilisé et réveillé si besoin.
-function obtenirContexteAudio() {
-    var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    if (!contexteAudio) contexteAudio = new Ctx();
-    if (contexteAudio.state === 'suspended') {
-        try { contexteAudio.resume(); } catch (e) {}
-    }
-    return contexteAudio;
-}
-
-// =====================================================
-// FONCTIONS D'AFFICHAGE
-// =====================================================
-function cacherTousLesEcrans() {
-    document.getElementById('ecranAccueil').style.display = 'none';
-    document.getElementById('ecranQuestion').style.display = 'none';
-    document.getElementById('ecranResultat').style.display = 'none';
-}
-
-function montrerAccueil() {
-    arreterChrono();
-    cacherTousLesEcrans();
-    document.getElementById('ecranAccueil').style.display = 'block';
-    document.getElementById('feedbackQuestion').innerHTML = '';
-    majBoutonReprendre();
-    afficherMeilleursScores();
-}
-
-function montrerQuestion() {
-    cacherTousLesEcrans();
-    document.getElementById('ecranQuestion').style.display = 'block';
-    document.getElementById('feedbackQuestion').innerHTML = '';
-    jeuBloque = false;
-    reactiverBoutons();
-    remettreStyleBoutons();
-}
-
-function montrerResultat() {
-    arreterChrono();
-    cacherTousLesEcrans();
-    document.getElementById('ecranResultat').style.display = 'block';
-}
-
-// =====================================================
-// MÉLANGE DES QUESTIONS
-// =====================================================
-function melangerTableau(tableau) {
-    // Fisher-Yates (copie du tableau, l'original n'est pas modifié)
-    var tab = tableau.slice();
-    for (var i = tab.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var temp = tab[i];
-        tab[i] = tab[j];
-        tab[j] = temp;
-    }
-    return tab;
-}
-
 // =====================================================
 // DÉMARRER LE QUIZ
 // =====================================================
 function demarrerQuiz() {
-    var config = DIFFICULTES[difficulteChoisie] || DIFFICULTES.moyen;
-    DUREE_QUESTION = config.temps;
-    // Mélange des questions, limitation au nombre voulu, puis
-    // mélange des positions de réponses de chaque question.
-    var pool = melangerTableau(toutesLesQuestions).slice(0, config.questions);
-    questionsMelangees = pool.map(preparerQuestion);
+    // 1) On mélange les 200 questions puis on n'en garde que 15 (sans remise) :
+    //    les 15 questions d'une partie sont donc forcément différentes.
+    var selection = melangerTableau(toutesLesQuestions).slice(0, QUESTIONS_PAR_PARTIE);
+    // 2) Pour chaque question retenue, on mélange les positions A/B/C/D et on
+    //    recale la bonne réponse sur sa nouvelle position.
+    questionsMelangees = selection.map(preparerQuestion);
     indexQuestion = 0;
     score = 0;
     reponsesDonnees = [];
     enPause = false;
-    effacerSauvegarde();
-    // Met à jour les totaux affichés selon le nombre réel de questions.
-    majTotaux();
-    document.getElementById('scoreActuel').textContent = '0';
-    document.getElementById('scoreFinal').textContent = '0';
+    document.getElementById('scoreActuel').innerHTML = '0';
+    document.getElementById('scoreFinal').innerHTML = '0';
     montrerQuestion();
     chargerQuestion(0);
+    var musique = document.getElementById('musiqueFond');
+    if (musique) musique.play().catch(function(){});
 }
-
-// Met à jour tous les compteurs "sur N" de l'interface.
-function majTotaux() {
-    var total = questionsMelangees.length;
-    ['totalQuestions', 'totalScore', 'totalFinal'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.textContent = total;
-    });
-}
-
 
 // =====================================================
 // CHARGER UNE QUESTION
@@ -375,11 +334,11 @@ function chargerQuestion(index) {
     }
     var q = questionsMelangees[index];
     document.getElementById('numQuestion').innerHTML = (index + 1);
-    document.getElementById('texteQuestion').textContent = q.question;
-    document.getElementById('texteA').textContent = q.choix['A'];
-    document.getElementById('texteB').textContent = q.choix['B'];
-    document.getElementById('texteC').textContent = q.choix['C'];
-    document.getElementById('texteD').textContent = q.choix['D'];
+    document.getElementById('texteQuestion').innerHTML = q.question;
+    document.getElementById('texteA').innerHTML = q.choix['A'];
+    document.getElementById('texteB').innerHTML = q.choix['B'];
+    document.getElementById('texteC').innerHTML = q.choix['C'];
+    document.getElementById('texteD').innerHTML = q.choix['D'];
     document.getElementById('scoreActuel').innerHTML = score;
     document.getElementById('feedbackQuestion').innerHTML = '⏳ Choisissez une réponse...';
     jeuBloque = false;
@@ -389,8 +348,6 @@ function chargerQuestion(index) {
     document.getElementById('contenuQuestionActif').style.display = 'block';
     document.getElementById('contenuPause').style.display = 'none';
     document.getElementById('boutonPause').textContent = '⏸️ Pause';
-    majBarreProgression();
-    sauvegarderPartie();
     lancerChrono();
 }
 
@@ -398,7 +355,7 @@ function chargerQuestion(index) {
 // GESTION DU CHRONO
 // =====================================================
 function lancerChrono() {
-    lancerChronoDepuis(DUREE_QUESTION);
+    lancerChronoDepuis(20);
 }
 
 function arreterChrono() {
@@ -408,37 +365,24 @@ function arreterChrono() {
     }
 }
 
-// Chronomètre basé sur l'horloge réelle (non sensible au throttling des onglets).
 function lancerChronoDepuis(depart) {
     arreterChrono();
-    chronoRestant = Math.max(0, Math.ceil(depart));
-    chronoFin = Date.now() + chronoRestant * 1000;
-    majAffichageChrono();
-    intervalleChrono = setInterval(tickChrono, 250);
+    chronoRestant = depart;
+    document.getElementById('chrono').innerHTML = chronoRestant;
+    intervalleChrono = setInterval(function () {
+        chronoRestant--;
+        var chronoEl = document.getElementById('chrono');
+        if (chronoEl) {
+            chronoEl.innerHTML = chronoRestant;
+            if (chronoRestant <= 5) chronoEl.style.color = '#ff0000';
+            else chronoEl.style.color = '#ff6b6b';
+        }
+        if (chronoRestant <= 0) {
+            arreterChrono();
+            tempsEcoule();
+        }
+    }, 1000);
 }
-
-function tickChrono() {
-    var restant = Math.ceil((chronoFin - Date.now()) / 1000);
-    if (restant < 0) restant = 0;
-    chronoRestant = restant;
-    majAffichageChrono();
-    if (restant <= 0) {
-        arreterChrono();
-        tempsEcoule();
-    }
-}
-
-function majAffichageChrono() {
-    var chronoEl = document.getElementById('chrono');
-    if (!chronoEl) return;
-    chronoEl.textContent = chronoRestant;
-    chronoEl.style.color = chronoRestant <= 5 ? '#ff0000' : '#ff6b6b';
-}
-
-// En cas de retour sur l'onglet, resynchronise immédiatement le temps.
-document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && intervalleChrono && !enPause) tickChrono();
-});
 
 function tempsEcoule() {
     if (jeuBloque) return;
@@ -452,7 +396,7 @@ function tempsEcoule() {
         correct: false
     });
     document.getElementById('feedbackQuestion').innerHTML =
-        '<span style="color:#ff6b6b;">⏰ Temps écoulé !</span> La bonne réponse était : <strong>' + echapper(q.choix[q.bonneReponse]) + '</strong>';
+        '<span style="color:#ff6b6b;">⏰ Temps écoulé !</span> La bonne réponse était : <strong>' + q.choix[q.bonneReponse] + '</strong>';
     surlignerBonneReponse(q.bonneReponse);
     setTimeout(function () {
         indexQuestion++;
@@ -490,7 +434,7 @@ function repondre(lettre) {
     } else {
         jouerSonFaux();
         document.getElementById('feedbackQuestion').innerHTML =
-            '<span style="color:#ff6b6b;">❌ FAUX !</span> La bonne réponse était : <strong>' + echapper(q.choix[q.bonneReponse]) + '</strong>';
+            '<span style="color:#ff6b6b;">❌ FAUX !</span> La bonne réponse était : <strong>' + q.choix[q.bonneReponse] + '</strong>';
         colorerBouton(lettre, '#cc3333');
         surlignerBonneReponse(q.bonneReponse);
     }
@@ -579,9 +523,9 @@ function basculerPause() {
         reactiverBoutons();
         lancerChronoDepuis(tempsAvantPause);
     } else {
-        // Pause : on calcule le temps restant réel
+        // Pause
         enPause = true;
-        tempsAvantPause = Math.max(0, Math.ceil((chronoFin - Date.now()) / 1000));
+        tempsAvantPause = chronoRestant;
         document.getElementById('contenuQuestionActif').style.display = 'none';
         document.getElementById('contenuPause').style.display = 'block';
         document.getElementById('boutonPause').textContent = '▶ Reprendre';
@@ -603,8 +547,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // =====================================================
 function jouerSonJuste() {
     try {
-        var ctx = obtenirContexteAudio();
-        if (!ctx) return;
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
         var o = ctx.createOscillator();
         var g = ctx.createGain();
         o.connect(g);
@@ -622,8 +565,7 @@ function jouerSonJuste() {
 
 function jouerSonFaux() {
     try {
-        var ctx = obtenirContexteAudio();
-        if (!ctx) return;
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
         var o = ctx.createOscillator();
         var g = ctx.createGain();
         o.connect(g);
@@ -643,30 +585,22 @@ function jouerSonFaux() {
 // =====================================================
 function afficherResultats() {
     montrerResultat();
-    effacerSauvegarde();
-    var total = questionsMelangees.length || 1;
-    enregistrerMeilleurScore(difficulteChoisie, score, total);
-    document.getElementById('scoreFinal').textContent = score;
-    document.getElementById('totalFinal').textContent = total;
-
-    // Mention basée sur le pourcentage de réussite (cohérent quel que soit
-    // le nombre de questions jouées).
-    var ratio = score / total;
+    document.getElementById('scoreFinal').innerHTML = score;
     var mention = '';
     var commentaire = '';
-    if (ratio === 1) {
+    if (score === 15) {
         mention = '🌟 EXCELLENT ! 🌟';
         commentaire = 'Vous êtes un véritable expert en culture générale ! Score parfait !';
-    } else if (ratio >= 0.8) {
+    } else if (score >= 12) {
         mention = '👏 Très bien !';
         commentaire = 'Excellent niveau de culture générale. Impressionnant !';
-    } else if (ratio >= 0.6) {
+    } else if (score >= 9) {
         mention = '👍 Bien joué !';
         commentaire = 'Bon niveau de culture générale. Continuez comme ça !';
-    } else if (ratio >= 0.4) {
+    } else if (score >= 6) {
         mention = '📚 Pas mal !';
         commentaire = 'Niveau correct. Un peu de lecture et vous progresserez !';
-    } else if (ratio >= 0.2) {
+    } else if (score >= 3) {
         mention = '🧐 Peut mieux faire...';
         commentaire = 'Quelques lacunes. N\'hésitez pas à vous cultiver davantage !';
     } else {
@@ -676,30 +610,25 @@ function afficherResultats() {
     document.getElementById('mentionFinale').innerHTML = mention;
     document.getElementById('commentaireFinal').innerHTML = commentaire;
 
-    // Construction du récapitulatif en UNE seule injection (performance).
-    var lignes = [];
+    var corps = document.getElementById('corpsRecap');
+    corps.innerHTML = '';
     for (var i = 0; i < reponsesDonnees.length; i++) {
         var r = reponsesDonnees[i];
         var couleurFond = r.correct ? '#1a3a2a' : '#3a1a1a';
         var symbole = r.correct ? '✅' : '❌';
-        lignes.push(
-            '<tr style="background-color:' + couleurFond + ';">' +
-            '<td style="text-align:left;font-size:0.9rem;">' +
-            '<strong>Q' + (i + 1) + '.</strong> ' + echapper(r.question) + '<br>' +
-            '<span style="font-size:0.8rem;opacity:0.8;">Votre réponse : <b>' + echapper(r.reponseDonnee) +
-            '</b> | Bonne réponse : <b>' + echapper(r.bonneReponse) + '</b></span>' +
-            '</td>' +
-            '<td style="text-align:center;font-size:1.5rem;">' + symbole + '</td>' +
-            '</tr>'
-        );
+        var ligne = '<tr style="background-color:' + couleurFond + ';">';
+        ligne += '<td style="text-align:left;font-size:0.9rem;">';
+        ligne += '<strong>Q' + (i + 1) + '.</strong> ' + r.question + '<br>';
+        ligne += '<span style="font-size:0.8rem;opacity:0.8;">Votre réponse : <b>' + r.reponseDonnee + '</b> | Bonne réponse : <b>' + r.bonneReponse + '</b></span>';
+        ligne += '</td>';
+        ligne += '<td style="text-align:center;font-size:1.5rem;">' + symbole + '</td>';
+        ligne += '</tr>';
+        corps.innerHTML += ligne;
     }
-    lignes.push(
-        '<tr style="background-color:#0f3460;">' +
-        '<td colspan="2" style="text-align:center;font-weight:bold;font-size:1.1rem;color:#ffcc00;">' +
-        'Score total : ' + score + ' / ' + total + ' (' + Math.round(ratio * 100) + ' %) — ' + mention +
-        '</td></tr>'
-    );
-    document.getElementById('corpsRecap').innerHTML = lignes.join('');
+    var ligneResume = '<tr style="background-color:#0f3460;">';
+    ligneResume += '<td colspan="2" style="text-align:center;font-weight:bold;font-size:1.1rem;color:#ffcc00;">Score total : ' + score + ' / 15 — ' + mention + '</td>';
+    ligneResume += '</tr>';
+    corps.innerHTML += ligneResume;
 }
 
 // =====================================================
@@ -709,150 +638,3 @@ function recommencerQuiz() {
     arreterChrono();
     demarrerQuiz();
 }
-// =====================================================
-// PROGRESSION / SAUVEGARDE / MEILLEURS SCORES
-// =====================================================
-var CLE_SAUVEGARDE = 'quiz_sauvegarde_v1';
-var CLE_SCORES = 'quiz_meilleurs_scores_v1';
-
-// Met a jour la barre de progression (0-100 %).
-function majBarreProgression() {
-    var total = questionsMelangees.length || 1;
-    var pourcentage = Math.round((indexQuestion / total) * 100);
-    var remplissage = document.getElementById('barreProgressionRemplissage');
-    if (remplissage) remplissage.style.width = pourcentage + '%';
-}
-
-// Sauvegarde l'etat de la partie en cours (reprise apres fermeture).
-function sauvegarderPartie() {
-    if (!questionsMelangees.length) return;
-    if (indexQuestion >= questionsMelangees.length) return;
-    var etat = {
-        difficulte: difficulteChoisie,
-        questionsMelangees: questionsMelangees,
-        indexQuestion: indexQuestion,
-        score: score,
-        reponsesDonnees: reponsesDonnees,
-        date: Date.now()
-    };
-    try { localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify(etat)); } catch (e) {}
-}
-
-// Recupere la sauvegarde si elle est valide, sinon null.
-function chargerSauvegarde() {
-    try {
-        var brut = localStorage.getItem(CLE_SAUVEGARDE);
-        if (!brut) return null;
-        var etat = JSON.parse(brut);
-        if (!etat || !etat.questionsMelangees || !etat.questionsMelangees.length) return null;
-        if (etat.indexQuestion >= etat.questionsMelangees.length) return null;
-        return etat;
-    } catch (e) { return null; }
-}
-
-function effacerSauvegarde() {
-    try { localStorage.removeItem(CLE_SAUVEGARDE); } catch (e) {}
-}
-
-// Reprend une partie sauvegardee.
-function reprendrePartie() {
-    var etat = chargerSauvegarde();
-    if (!etat) return;
-    difficulteChoisie = etat.difficulte || 'moyen';
-    DUREE_QUESTION = (DIFFICULTES[difficulteChoisie] || DIFFICULTES.moyen).temps;
-    questionsMelangees = etat.questionsMelangees;
-    indexQuestion = etat.indexQuestion || 0;
-    score = etat.score || 0;
-    reponsesDonnees = etat.reponsesDonnees || [];
-    enPause = false;
-    majTotaux();
-    document.getElementById('scoreActuel').textContent = score;
-    montrerQuestion();
-    chargerQuestion(indexQuestion);
-}
-
-// Affiche/masque le bouton Reprendre selon l'existence d'une sauvegarde.
-function majBoutonReprendre() {
-    var btn = document.getElementById('btnReprendre');
-    if (!btn) return;
-    btn.style.display = chargerSauvegarde() ? 'inline-block' : 'none';
-}
-
-function chargerMeilleursScores() {
-    try { return JSON.parse(localStorage.getItem(CLE_SCORES)) || {}; } catch (e) { return {}; }
-}
-
-// Enregistre le score s'il bat le record de la difficulte.
-function enregistrerMeilleurScore(difficulte, valeur, total) {
-    var scores = chargerMeilleursScores();
-    var precedent = scores[difficulte];
-    if (!precedent || valeur > precedent.score) {
-        scores[difficulte] = { score: valeur, total: total, date: Date.now() };
-        try { localStorage.setItem(CLE_SCORES, JSON.stringify(scores)); } catch (e) {}
-    }
-}
-
-// Affiche les meilleurs scores sur l'ecran d'accueil.
-function afficherMeilleursScores() {
-    var conteneur = document.getElementById('meilleursScores');
-    if (!conteneur) return;
-    var scores = chargerMeilleursScores();
-    var cles = ['facile', 'moyen', 'difficile'];
-    var lignes = [];
-    for (var i = 0; i < cles.length; i++) {
-        var cle = cles[i];
-        var nom = (DIFFICULTES[cle] || {}).nom || cle;
-        var record = scores[cle];
-        var valeur = record ? (record.score + ' / ' + record.total) : 'aucun';
-        lignes.push('<li><strong>' + echapper(nom) + '</strong> : ' + echapper(valeur) + '</li>');
-    }
-    conteneur.innerHTML = '<h3>Meilleurs scores :</h3><ul>' + lignes.join('') + '</ul>';
-}
-
-// =====================================================
-// DIFFICULTE
-// =====================================================
-function choisirDifficulte(cle) {
-    if (!DIFFICULTES[cle]) return;
-    difficulteChoisie = cle;
-    var boutons = document.querySelectorAll('.btnDifficulte');
-    for (var i = 0; i < boutons.length; i++) {
-        var actif = boutons[i].getAttribute('data-difficulte') === cle;
-        if (actif) boutons[i].classList.add('actif');
-        else boutons[i].classList.remove('actif');
-        boutons[i].setAttribute('aria-pressed', actif ? 'true' : 'false');
-    }
-}
-
-// =====================================================
-// RACCOURCIS CLAVIER (A/B/C/D et 1/2/3/4)
-// =====================================================
-function gererClavier(e) {
-    var ecranQuestion = document.getElementById('ecranQuestion');
-    if (!ecranQuestion || ecranQuestion.style.display === 'none') return;
-    if (jeuBloque || enPause) return;
-    var correspondance = { a: 'A', b: 'B', c: 'C', d: 'D', '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
-    var touche = (e.key || '').toLowerCase();
-    if (correspondance[touche]) {
-        e.preventDefault();
-        repondre(correspondance[touche]);
-    }
-}
-
-// =====================================================
-// INITIALISATION
-// =====================================================
-document.addEventListener('DOMContentLoaded', function () {
-    var boutons = document.querySelectorAll('.btnDifficulte');
-    for (var i = 0; i < boutons.length; i++) {
-        (function (btn) {
-            btn.addEventListener('click', function () {
-                choisirDifficulte(btn.getAttribute('data-difficulte'));
-            });
-        })(boutons[i]);
-    }
-    choisirDifficulte(difficulteChoisie);
-    majBoutonReprendre();
-    afficherMeilleursScores();
-    document.addEventListener('keydown', gererClavier);
-});
