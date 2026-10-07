@@ -219,17 +219,65 @@ var toutesLesQuestions = [
 ];
 
 // =====================================================
+// CONFIGURATION DU JEU
+// =====================================================
+var DUREE_QUESTION = 20;              // secondes par question
+var QUESTIONS_PAR_PARTIE = 200;       // nombre de questions jouées par partie
+
+// =====================================================
 // VARIABLES GLOBALES DU JEU
 // =====================================================
 var questionsMelangees = [];
 var indexQuestion = 0;
 var score = 0;
-var chronoRestant = 20;
+var chronoRestant = DUREE_QUESTION;
 var intervalleChrono = null;
+var chronoFin = 0;                    // horodatage de fin (temps réel)
 var reponsesDonnees = [];
 var jeuBloque = false;
 var enPause = false;
-var tempsAvantPause = 20;
+var tempsAvantPause = DUREE_QUESTION;
+var contexteAudio = null;             // AudioContext réutilisé (pas de fuite)
+
+// =====================================================
+// UTILITAIRES
+// =====================================================
+// Échappe une chaîne avant injection dans du HTML (anti-XSS).
+function echapper(valeur) {
+    return String(valeur).replace(/[&<>"']/g, function (car) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[car];
+    });
+}
+
+// Prépare une question : mélange les positions des réponses (A-D) et
+// recalcule l'emplacement de la bonne réponse pour supprimer tout biais.
+function preparerQuestion(q) {
+    var lettres = ['A', 'B', 'C', 'D'];
+    var bonneTexte = q.choix[q.bonneReponse];
+    var textes = [q.choix['A'], q.choix['B'], q.choix['C'], q.choix['D']];
+    var melanges = melangerTableau(textes);
+    var nouvelleBonne = 'A';
+    for (var i = 0; i < melanges.length; i++) {
+        if (melanges[i] === bonneTexte) { nouvelleBonne = lettres[i]; break; }
+    }
+    return {
+        question: q.question,
+        choix: { A: melanges[0], B: melanges[1], C: melanges[2], D: melanges[3] },
+        bonneReponse: nouvelleBonne,
+        theme: q.theme
+    };
+}
+
+// Retourne un AudioContext unique, réutilisé et réveillé si besoin.
+function obtenirContexteAudio() {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!contexteAudio) contexteAudio = new Ctx();
+    if (contexteAudio.state === 'suspended') {
+        try { contexteAudio.resume(); } catch (e) {}
+    }
+    return contexteAudio;
+}
 
 // =====================================================
 // FONCTIONS D'AFFICHAGE
@@ -245,8 +293,6 @@ function montrerAccueil() {
     cacherTousLesEcrans();
     document.getElementById('ecranAccueil').style.display = 'block';
     document.getElementById('feedbackQuestion').innerHTML = '';
-    var musique = document.getElementById('musiqueFond');
-    if (musique) musique.pause();
 }
 
 function montrerQuestion() {
@@ -262,14 +308,13 @@ function montrerResultat() {
     arreterChrono();
     cacherTousLesEcrans();
     document.getElementById('ecranResultat').style.display = 'block';
-    var musique = document.getElementById('musiqueFond');
-    if (musique) musique.pause();
 }
 
 // =====================================================
 // MÉLANGE DES QUESTIONS
 // =====================================================
 function melangerTableau(tableau) {
+    // Fisher-Yates (copie du tableau, l'original n'est pas modifié)
     var tab = tableau.slice();
     for (var i = tab.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
@@ -284,18 +329,31 @@ function melangerTableau(tableau) {
 // DÉMARRER LE QUIZ
 // =====================================================
 function demarrerQuiz() {
-    questionsMelangees = melangerTableau(toutesLesQuestions);
+    // Mélange des questions, limitation au nombre voulu, puis
+    // mélange des positions de réponses de chaque question.
+    var pool = melangerTableau(toutesLesQuestions).slice(0, QUESTIONS_PAR_PARTIE);
+    questionsMelangees = pool.map(preparerQuestion);
     indexQuestion = 0;
     score = 0;
     reponsesDonnees = [];
     enPause = false;
+    // Met à jour les totaux affichés selon le nombre réel de questions.
+    majTotaux();
     document.getElementById('scoreActuel').innerHTML = '0';
     document.getElementById('scoreFinal').innerHTML = '0';
     montrerQuestion();
     chargerQuestion(0);
-    var musique = document.getElementById('musiqueFond');
-    if (musique) musique.play().catch(function(){});
 }
+
+// Met à jour tous les compteurs "sur N" de l'interface.
+function majTotaux() {
+    var total = questionsMelangees.length;
+    ['totalQuestions', 'totalScore', 'totalFinal'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = total;
+    });
+}
+
 
 // =====================================================
 // CHARGER UNE QUESTION
@@ -307,11 +365,11 @@ function chargerQuestion(index) {
     }
     var q = questionsMelangees[index];
     document.getElementById('numQuestion').innerHTML = (index + 1);
-    document.getElementById('texteQuestion').innerHTML = q.question;
-    document.getElementById('texteA').innerHTML = q.choix['A'];
-    document.getElementById('texteB').innerHTML = q.choix['B'];
-    document.getElementById('texteC').innerHTML = q.choix['C'];
-    document.getElementById('texteD').innerHTML = q.choix['D'];
+    document.getElementById('texteQuestion').textContent = q.question;
+    document.getElementById('texteA').textContent = q.choix['A'];
+    document.getElementById('texteB').textContent = q.choix['B'];
+    document.getElementById('texteC').textContent = q.choix['C'];
+    document.getElementById('texteD').textContent = q.choix['D'];
     document.getElementById('scoreActuel').innerHTML = score;
     document.getElementById('feedbackQuestion').innerHTML = '⏳ Choisissez une réponse...';
     jeuBloque = false;
@@ -328,7 +386,7 @@ function chargerQuestion(index) {
 // GESTION DU CHRONO
 // =====================================================
 function lancerChrono() {
-    lancerChronoDepuis(20);
+    lancerChronoDepuis(DUREE_QUESTION);
 }
 
 function arreterChrono() {
@@ -338,24 +396,37 @@ function arreterChrono() {
     }
 }
 
+// Chronomètre basé sur l'horloge réelle (non sensible au throttling des onglets).
 function lancerChronoDepuis(depart) {
     arreterChrono();
-    chronoRestant = depart;
-    document.getElementById('chrono').innerHTML = chronoRestant;
-    intervalleChrono = setInterval(function () {
-        chronoRestant--;
-        var chronoEl = document.getElementById('chrono');
-        if (chronoEl) {
-            chronoEl.innerHTML = chronoRestant;
-            if (chronoRestant <= 5) chronoEl.style.color = '#ff0000';
-            else chronoEl.style.color = '#ff6b6b';
-        }
-        if (chronoRestant <= 0) {
-            arreterChrono();
-            tempsEcoule();
-        }
-    }, 1000);
+    chronoRestant = Math.max(0, Math.ceil(depart));
+    chronoFin = Date.now() + chronoRestant * 1000;
+    majAffichageChrono();
+    intervalleChrono = setInterval(tickChrono, 250);
 }
+
+function tickChrono() {
+    var restant = Math.ceil((chronoFin - Date.now()) / 1000);
+    if (restant < 0) restant = 0;
+    chronoRestant = restant;
+    majAffichageChrono();
+    if (restant <= 0) {
+        arreterChrono();
+        tempsEcoule();
+    }
+}
+
+function majAffichageChrono() {
+    var chronoEl = document.getElementById('chrono');
+    if (!chronoEl) return;
+    chronoEl.textContent = chronoRestant;
+    chronoEl.style.color = chronoRestant <= 5 ? '#ff0000' : '#ff6b6b';
+}
+
+// En cas de retour sur l'onglet, resynchronise immédiatement le temps.
+document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && intervalleChrono && !enPause) tickChrono();
+});
 
 function tempsEcoule() {
     if (jeuBloque) return;
@@ -369,7 +440,7 @@ function tempsEcoule() {
         correct: false
     });
     document.getElementById('feedbackQuestion').innerHTML =
-        '<span style="color:#ff6b6b;">⏰ Temps écoulé !</span> La bonne réponse était : <strong>' + q.choix[q.bonneReponse] + '</strong>';
+        '<span style="color:#ff6b6b;">⏰ Temps écoulé !</span> La bonne réponse était : <strong>' + echapper(q.choix[q.bonneReponse]) + '</strong>';
     surlignerBonneReponse(q.bonneReponse);
     setTimeout(function () {
         indexQuestion++;
@@ -407,7 +478,7 @@ function repondre(lettre) {
     } else {
         jouerSonFaux();
         document.getElementById('feedbackQuestion').innerHTML =
-            '<span style="color:#ff6b6b;">❌ FAUX !</span> La bonne réponse était : <strong>' + q.choix[q.bonneReponse] + '</strong>';
+            '<span style="color:#ff6b6b;">❌ FAUX !</span> La bonne réponse était : <strong>' + echapper(q.choix[q.bonneReponse]) + '</strong>';
         colorerBouton(lettre, '#cc3333');
         surlignerBonneReponse(q.bonneReponse);
     }
@@ -496,9 +567,9 @@ function basculerPause() {
         reactiverBoutons();
         lancerChronoDepuis(tempsAvantPause);
     } else {
-        // Pause
+        // Pause : on calcule le temps restant réel
         enPause = true;
-        tempsAvantPause = chronoRestant;
+        tempsAvantPause = Math.max(0, Math.ceil((chronoFin - Date.now()) / 1000));
         document.getElementById('contenuQuestionActif').style.display = 'none';
         document.getElementById('contenuPause').style.display = 'block';
         document.getElementById('boutonPause').textContent = '▶ Reprendre';
@@ -520,7 +591,8 @@ document.addEventListener('DOMContentLoaded', function () {
 // =====================================================
 function jouerSonJuste() {
     try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var ctx = obtenirContexteAudio();
+        if (!ctx) return;
         var o = ctx.createOscillator();
         var g = ctx.createGain();
         o.connect(g);
@@ -538,7 +610,8 @@ function jouerSonJuste() {
 
 function jouerSonFaux() {
     try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var ctx = obtenirContexteAudio();
+        if (!ctx) return;
         var o = ctx.createOscillator();
         var g = ctx.createGain();
         o.connect(g);
@@ -558,22 +631,28 @@ function jouerSonFaux() {
 // =====================================================
 function afficherResultats() {
     montrerResultat();
+    var total = questionsMelangees.length || 1;
     document.getElementById('scoreFinal').innerHTML = score;
+    document.getElementById('totalFinal').textContent = total;
+
+    // Mention basée sur le pourcentage de réussite (cohérent quel que soit
+    // le nombre de questions jouées).
+    var ratio = score / total;
     var mention = '';
     var commentaire = '';
-    if (score === 15) {
+    if (ratio === 1) {
         mention = '🌟 EXCELLENT ! 🌟';
         commentaire = 'Vous êtes un véritable expert en culture générale ! Score parfait !';
-    } else if (score >= 12) {
+    } else if (ratio >= 0.8) {
         mention = '👏 Très bien !';
         commentaire = 'Excellent niveau de culture générale. Impressionnant !';
-    } else if (score >= 9) {
+    } else if (ratio >= 0.6) {
         mention = '👍 Bien joué !';
         commentaire = 'Bon niveau de culture générale. Continuez comme ça !';
-    } else if (score >= 6) {
+    } else if (ratio >= 0.4) {
         mention = '📚 Pas mal !';
         commentaire = 'Niveau correct. Un peu de lecture et vous progresserez !';
-    } else if (score >= 3) {
+    } else if (ratio >= 0.2) {
         mention = '🧐 Peut mieux faire...';
         commentaire = 'Quelques lacunes. N\'hésitez pas à vous cultiver davantage !';
     } else {
@@ -583,25 +662,30 @@ function afficherResultats() {
     document.getElementById('mentionFinale').innerHTML = mention;
     document.getElementById('commentaireFinal').innerHTML = commentaire;
 
-    var corps = document.getElementById('corpsRecap');
-    corps.innerHTML = '';
+    // Construction du récapitulatif en UNE seule injection (performance).
+    var lignes = [];
     for (var i = 0; i < reponsesDonnees.length; i++) {
         var r = reponsesDonnees[i];
         var couleurFond = r.correct ? '#1a3a2a' : '#3a1a1a';
         var symbole = r.correct ? '✅' : '❌';
-        var ligne = '<tr style="background-color:' + couleurFond + ';">';
-        ligne += '<td style="text-align:left;font-size:0.9rem;">';
-        ligne += '<strong>Q' + (i + 1) + '.</strong> ' + r.question + '<br>';
-        ligne += '<span style="font-size:0.8rem;opacity:0.8;">Votre réponse : <b>' + r.reponseDonnee + '</b> | Bonne réponse : <b>' + r.bonneReponse + '</b></span>';
-        ligne += '</td>';
-        ligne += '<td style="text-align:center;font-size:1.5rem;">' + symbole + '</td>';
-        ligne += '</tr>';
-        corps.innerHTML += ligne;
+        lignes.push(
+            '<tr style="background-color:' + couleurFond + ';">' +
+            '<td style="text-align:left;font-size:0.9rem;">' +
+            '<strong>Q' + (i + 1) + '.</strong> ' + echapper(r.question) + '<br>' +
+            '<span style="font-size:0.8rem;opacity:0.8;">Votre réponse : <b>' + echapper(r.reponseDonnee) +
+            '</b> | Bonne réponse : <b>' + echapper(r.bonneReponse) + '</b></span>' +
+            '</td>' +
+            '<td style="text-align:center;font-size:1.5rem;">' + symbole + '</td>' +
+            '</tr>'
+        );
     }
-    var ligneResume = '<tr style="background-color:#0f3460;">';
-    ligneResume += '<td colspan="2" style="text-align:center;font-weight:bold;font-size:1.1rem;color:#ffcc00;">Score total : ' + score + ' / 15 — ' + mention + '</td>';
-    ligneResume += '</tr>';
-    corps.innerHTML += ligneResume;
+    lignes.push(
+        '<tr style="background-color:#0f3460;">' +
+        '<td colspan="2" style="text-align:center;font-weight:bold;font-size:1.1rem;color:#ffcc00;">' +
+        'Score total : ' + score + ' / ' + total + ' (' + Math.round(ratio * 100) + ' %) — ' + mention +
+        '</td></tr>'
+    );
+    document.getElementById('corpsRecap').innerHTML = lignes.join('');
 }
 
 // =====================================================

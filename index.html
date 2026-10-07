@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Culture Générale</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="favicon.ico"> 
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 <body>
     <div id="ecranAccueil">
@@ -28,13 +28,13 @@
     <div id="contenuQuestionActif">
         <table>
             <tr>
-                <td><span>Question</span><br><strong><span id="numQuestion">1</span>/200</strong></td>
-                <td><span>Score</span><br><strong><span id="scoreActuel">0</span> / 200</strong></td>
+                <td><span>Question</span><br><strong><span id="numQuestion">1</span>/<span id="totalQuestions">200</span></strong></td>
+                <td><span>Score</span><br><strong><span id="scoreActuel">0</span> / <span id="totalScore">200</span></strong></td>
                 <td><span>Temps</span><br><strong><span id="chrono">20</span> s</strong></td>
             </tr>
         </table>
         <div><strong><span id="texteQuestion"></span></strong></div>
-        <table>
+        <table id="tableReponses">
             <tr>
                 <td><button id="btnA" onclick="repondre('A')"><b>A)</b> <span id="texteA"></span></button></td>
                 <td><button id="btnB" onclick="repondre('B')"><b>B)</b> <span id="texteB"></span></button></td>
@@ -44,7 +44,7 @@
                 <td><button id="btnD" onclick="repondre('D')"><b>D)</b> <span id="texteD"></span></button></td>
             </tr>
         </table>
-        <p id="feedbackQuestion"></p>
+        <p id="feedbackQuestion" role="status" aria-live="polite"></p>
     </div>
 
     <!-- Écran de pause (caché par défaut) -->
@@ -60,7 +60,7 @@
 <div id="ecranResultat" style="display:none;">
     <h2>RÉSULTATS</h2>
     <div>
-        <p>Votre score : <strong><span id="scoreFinal">0</span> / 200</strong></p>
+        <p>Votre score : <strong><span id="scoreFinal">0</span> / <span id="totalFinal">200</span></strong></p>
         <p><strong><span id="mentionFinale">Mention</span></strong></p>
         <p id="commentaireFinal"></p>
     </div>
