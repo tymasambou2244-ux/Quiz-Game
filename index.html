@@ -10,17 +10,26 @@
 <body>
     <div id="ecranAccueil">
     <h2>Bienvenue dans le Quiz !</h2>
+
+    <h3>Choisissez votre difficulté :</h3>
+    <div id="choixDifficulte" role="group" aria-label="Choix de la difficulté">
+        <button type="button" class="btnDifficulte" data-difficulte="facile">🙂 Facile<br><small>10 questions · 25 s</small></button>
+        <button type="button" class="btnDifficulte" data-difficulte="moyen">😎 Moyen<br><small>20 questions · 20 s</small></button>
+        <button type="button" class="btnDifficulte" data-difficulte="difficile">🔥 Difficile<br><small>30 questions · 15 s</small></button>
+    </div>
+
     <h3>Règles :</h3>
     <ul>
-        <li><strong>200 questions</strong> de culture générale</li>
         <li><strong>4 choix</strong> de réponse par question</li>
-        <li><strong>20 secondes</strong> maximum par question</li>
+        <li>Un temps limité par question, selon la difficulté</li>
         <li><strong>+1 point</strong> par bonne réponse</li>
         <li>Pas de pénalité pour les mauvaises réponses</li>
-        <li>Score final sur <strong>200 points</strong></li>
+        <li>Les réponses sont mélangées à chaque partie</li>
     </ul>
-    <p><strong>Thèmes :</strong> Histoire · Géographie · Sciences · Arts · Littérature · Sports · Musique · Cinéma</p>
+    <p><strong>Thèmes :</strong> Histoire · Géographie · Sciences · Arts · Littérature · Sports · Musique · Cinéma · Technologie · Nature</p>
     <button onclick="demarrerQuiz()">▶ COMMENCER LE QUIZ</button>
+    <button id="btnReprendre" onclick="reprendrePartie()" style="display:none;">⏯ REPRENDRE LA PARTIE</button>
+    <div id="meilleursScores"></div>
 </div>
 
 <div id="ecranQuestion" style="display:none;">
@@ -33,6 +42,7 @@
                 <td><span>Temps</span><br><strong><span id="chrono">20</span> s</strong></td>
             </tr>
         </table>
+        <div id="barreProgression" aria-hidden="true"><div id="barreProgressionRemplissage"></div></div>
         <div><strong><span id="texteQuestion"></span></strong></div>
         <table id="tableReponses">
             <tr>

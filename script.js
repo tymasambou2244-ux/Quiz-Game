@@ -221,8 +221,13 @@ var toutesLesQuestions = [
 // =====================================================
 // CONFIGURATION DU JEU
 // =====================================================
-var DUREE_QUESTION = 20;              // secondes par question
-var QUESTIONS_PAR_PARTIE = 200;       // nombre de questions jouées par partie
+var DIFFICULTES = {
+    facile:    { nom: 'Facile',    questions: 10, temps: 25 },
+    moyen:     { nom: 'Moyen',     questions: 20, temps: 20 },
+    difficile: { nom: 'Difficile', questions: 30, temps: 15 }
+};
+var difficulteChoisie = 'moyen';
+var DUREE_QUESTION = DIFFICULTES[difficulteChoisie].temps;
 
 // =====================================================
 // VARIABLES GLOBALES DU JEU
@@ -293,6 +298,8 @@ function montrerAccueil() {
     cacherTousLesEcrans();
     document.getElementById('ecranAccueil').style.display = 'block';
     document.getElementById('feedbackQuestion').innerHTML = '';
+    majBoutonReprendre();
+    afficherMeilleursScores();
 }
 
 function montrerQuestion() {
@@ -329,18 +336,21 @@ function melangerTableau(tableau) {
 // DÉMARRER LE QUIZ
 // =====================================================
 function demarrerQuiz() {
+    var config = DIFFICULTES[difficulteChoisie] || DIFFICULTES.moyen;
+    DUREE_QUESTION = config.temps;
     // Mélange des questions, limitation au nombre voulu, puis
     // mélange des positions de réponses de chaque question.
-    var pool = melangerTableau(toutesLesQuestions).slice(0, QUESTIONS_PAR_PARTIE);
+    var pool = melangerTableau(toutesLesQuestions).slice(0, config.questions);
     questionsMelangees = pool.map(preparerQuestion);
     indexQuestion = 0;
     score = 0;
     reponsesDonnees = [];
     enPause = false;
+    effacerSauvegarde();
     // Met à jour les totaux affichés selon le nombre réel de questions.
     majTotaux();
-    document.getElementById('scoreActuel').innerHTML = '0';
-    document.getElementById('scoreFinal').innerHTML = '0';
+    document.getElementById('scoreActuel').textContent = '0';
+    document.getElementById('scoreFinal').textContent = '0';
     montrerQuestion();
     chargerQuestion(0);
 }
@@ -379,6 +389,8 @@ function chargerQuestion(index) {
     document.getElementById('contenuQuestionActif').style.display = 'block';
     document.getElementById('contenuPause').style.display = 'none';
     document.getElementById('boutonPause').textContent = '⏸️ Pause';
+    majBarreProgression();
+    sauvegarderPartie();
     lancerChrono();
 }
 
@@ -631,8 +643,10 @@ function jouerSonFaux() {
 // =====================================================
 function afficherResultats() {
     montrerResultat();
+    effacerSauvegarde();
     var total = questionsMelangees.length || 1;
-    document.getElementById('scoreFinal').innerHTML = score;
+    enregistrerMeilleurScore(difficulteChoisie, score, total);
+    document.getElementById('scoreFinal').textContent = score;
     document.getElementById('totalFinal').textContent = total;
 
     // Mention basée sur le pourcentage de réussite (cohérent quel que soit
@@ -695,3 +709,150 @@ function recommencerQuiz() {
     arreterChrono();
     demarrerQuiz();
 }
+// =====================================================
+// PROGRESSION / SAUVEGARDE / MEILLEURS SCORES
+// =====================================================
+var CLE_SAUVEGARDE = 'quiz_sauvegarde_v1';
+var CLE_SCORES = 'quiz_meilleurs_scores_v1';
+
+// Met a jour la barre de progression (0-100 %).
+function majBarreProgression() {
+    var total = questionsMelangees.length || 1;
+    var pourcentage = Math.round((indexQuestion / total) * 100);
+    var remplissage = document.getElementById('barreProgressionRemplissage');
+    if (remplissage) remplissage.style.width = pourcentage + '%';
+}
+
+// Sauvegarde l'etat de la partie en cours (reprise apres fermeture).
+function sauvegarderPartie() {
+    if (!questionsMelangees.length) return;
+    if (indexQuestion >= questionsMelangees.length) return;
+    var etat = {
+        difficulte: difficulteChoisie,
+        questionsMelangees: questionsMelangees,
+        indexQuestion: indexQuestion,
+        score: score,
+        reponsesDonnees: reponsesDonnees,
+        date: Date.now()
+    };
+    try { localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify(etat)); } catch (e) {}
+}
+
+// Recupere la sauvegarde si elle est valide, sinon null.
+function chargerSauvegarde() {
+    try {
+        var brut = localStorage.getItem(CLE_SAUVEGARDE);
+        if (!brut) return null;
+        var etat = JSON.parse(brut);
+        if (!etat || !etat.questionsMelangees || !etat.questionsMelangees.length) return null;
+        if (etat.indexQuestion >= etat.questionsMelangees.length) return null;
+        return etat;
+    } catch (e) { return null; }
+}
+
+function effacerSauvegarde() {
+    try { localStorage.removeItem(CLE_SAUVEGARDE); } catch (e) {}
+}
+
+// Reprend une partie sauvegardee.
+function reprendrePartie() {
+    var etat = chargerSauvegarde();
+    if (!etat) return;
+    difficulteChoisie = etat.difficulte || 'moyen';
+    DUREE_QUESTION = (DIFFICULTES[difficulteChoisie] || DIFFICULTES.moyen).temps;
+    questionsMelangees = etat.questionsMelangees;
+    indexQuestion = etat.indexQuestion || 0;
+    score = etat.score || 0;
+    reponsesDonnees = etat.reponsesDonnees || [];
+    enPause = false;
+    majTotaux();
+    document.getElementById('scoreActuel').textContent = score;
+    montrerQuestion();
+    chargerQuestion(indexQuestion);
+}
+
+// Affiche/masque le bouton Reprendre selon l'existence d'une sauvegarde.
+function majBoutonReprendre() {
+    var btn = document.getElementById('btnReprendre');
+    if (!btn) return;
+    btn.style.display = chargerSauvegarde() ? 'inline-block' : 'none';
+}
+
+function chargerMeilleursScores() {
+    try { return JSON.parse(localStorage.getItem(CLE_SCORES)) || {}; } catch (e) { return {}; }
+}
+
+// Enregistre le score s'il bat le record de la difficulte.
+function enregistrerMeilleurScore(difficulte, valeur, total) {
+    var scores = chargerMeilleursScores();
+    var precedent = scores[difficulte];
+    if (!precedent || valeur > precedent.score) {
+        scores[difficulte] = { score: valeur, total: total, date: Date.now() };
+        try { localStorage.setItem(CLE_SCORES, JSON.stringify(scores)); } catch (e) {}
+    }
+}
+
+// Affiche les meilleurs scores sur l'ecran d'accueil.
+function afficherMeilleursScores() {
+    var conteneur = document.getElementById('meilleursScores');
+    if (!conteneur) return;
+    var scores = chargerMeilleursScores();
+    var cles = ['facile', 'moyen', 'difficile'];
+    var lignes = [];
+    for (var i = 0; i < cles.length; i++) {
+        var cle = cles[i];
+        var nom = (DIFFICULTES[cle] || {}).nom || cle;
+        var record = scores[cle];
+        var valeur = record ? (record.score + ' / ' + record.total) : 'aucun';
+        lignes.push('<li><strong>' + echapper(nom) + '</strong> : ' + echapper(valeur) + '</li>');
+    }
+    conteneur.innerHTML = '<h3>Meilleurs scores :</h3><ul>' + lignes.join('') + '</ul>';
+}
+
+// =====================================================
+// DIFFICULTE
+// =====================================================
+function choisirDifficulte(cle) {
+    if (!DIFFICULTES[cle]) return;
+    difficulteChoisie = cle;
+    var boutons = document.querySelectorAll('.btnDifficulte');
+    for (var i = 0; i < boutons.length; i++) {
+        var actif = boutons[i].getAttribute('data-difficulte') === cle;
+        if (actif) boutons[i].classList.add('actif');
+        else boutons[i].classList.remove('actif');
+        boutons[i].setAttribute('aria-pressed', actif ? 'true' : 'false');
+    }
+}
+
+// =====================================================
+// RACCOURCIS CLAVIER (A/B/C/D et 1/2/3/4)
+// =====================================================
+function gererClavier(e) {
+    var ecranQuestion = document.getElementById('ecranQuestion');
+    if (!ecranQuestion || ecranQuestion.style.display === 'none') return;
+    if (jeuBloque || enPause) return;
+    var correspondance = { a: 'A', b: 'B', c: 'C', d: 'D', '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
+    var touche = (e.key || '').toLowerCase();
+    if (correspondance[touche]) {
+        e.preventDefault();
+        repondre(correspondance[touche]);
+    }
+}
+
+// =====================================================
+// INITIALISATION
+// =====================================================
+document.addEventListener('DOMContentLoaded', function () {
+    var boutons = document.querySelectorAll('.btnDifficulte');
+    for (var i = 0; i < boutons.length; i++) {
+        (function (btn) {
+            btn.addEventListener('click', function () {
+                choisirDifficulte(btn.getAttribute('data-difficulte'));
+            });
+        })(boutons[i]);
+    }
+    choisirDifficulte(difficulteChoisie);
+    majBoutonReprendre();
+    afficherMeilleursScores();
+    document.addEventListener('keydown', gererClavier);
+});

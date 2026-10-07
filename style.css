@@ -287,6 +287,68 @@ button[style*="background: rgb(204, 51, 51)"] {
     transform: scale(1.04);
 }
 
+/* ========== DIFFICULTÉ ========== */
+#choixDifficulte {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 10px 0 20px;
+}
+
+.btnDifficulte {
+    flex: 1 1 150px;
+    max-width: 230px;
+    font-size: 1rem;
+    padding: 12px 16px;
+    margin: 0;
+    background: linear-gradient(135deg, #1e3a5f, #2a4a7f);
+    border: 2px solid #4a90d9;
+    border-radius: 18px;
+    line-height: 1.35;
+}
+
+.btnDifficulte small {
+    font-weight: 600;
+    opacity: 0.85;
+    font-size: 0.78rem;
+}
+
+.btnDifficulte.actif {
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    border-color: #ffd93d;
+    box-shadow: 0 0 0 3px rgba(255, 217, 61, 0.5);
+}
+
+/* ========== BARRE DE PROGRESSION ========== */
+#barreProgression {
+    width: 100%;
+    height: 10px;
+    margin: 5px 0 15px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 50px;
+    overflow: hidden;
+}
+
+#barreProgressionRemplissage {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #6c5ce7, #ffd93d);
+    border-radius: 50px;
+    transition: width 0.3s ease;
+}
+
+/* ========== MEILLEURS SCORES ========== */
+#meilleursScores {
+    margin-top: 15px;
+    text-align: left;
+}
+
+#meilleursScores h3 {
+    text-align: center;
+    font-size: 1.3rem;
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 600px) {
     body {
